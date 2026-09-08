@@ -38,14 +38,13 @@ To transform text sentences into real 384-dimensional vectors for the vector dat
 The problem statement allows two options:
 > *"Embed a real text corpus (any 5,000 short texts you like) or generate clustered synthetic vectors from your SEED."*
 
-You have three choices:
-- **Choice A: Automated Public Dataset (Recommended)**:
-  - Download a clean public text dataset (e.g., AG News or DBpedia subsets, ~10 MB).
-  - Our data prep script will download this automatically via HTTP.
-- **Choice B: Your Own Custom Text Files**:
-  - If you have specific text files, PDFs, or FAQs you want to search in your demo video, simply drop a `.txt` or `.jsonl` file into `data/corpus/`.
-- **Choice C: Pure Synthetic Clustered Vectors (100% Offline)**:
-  - Requires 0 external downloads. Generates 50,000 anisotropic clustered vectors using NumPy Gaussian mixtures with `SEED = 42`.
+You have two supported dataset workflows:
+- **Mode A: Real AG News Corpus (Default)**:
+  - 5,000 real sentences from AG News are embedded with `all-MiniLM-L6-v2` (`dim=384`) and expanded to 50,000 vectors via controlled Gaussian manifold perturbations ($\sigma=0.03$, `SEED=42`).
+  - If `data/corpus/ag_news_train.csv` is not found locally, `python3 data/prepare_data.py` automatically downloads it via HTTP.
+- **Mode B: Pure Synthetic Clustered Vectors (100% Offline via `--synthetic`)**:
+  - Run `python3 data/prepare_data.py --synthetic`.
+  - Requires 0 external downloads or ML models. Generates 50,000 anisotropic clustered vectors using NumPy Dirichlet-Gaussian mixtures with `SEED=42`.
 
 ### Item 3: Screen Recorder / Video Tool (For Demo Submission)
 The problem statement asks to *"upload a working demo video of it"*:
@@ -67,8 +66,7 @@ The problem statement asks to *"upload a working demo video of it"*:
 | **Sentence-Transformers** | `pip install sentence-transformers` | ~15 MB | Installed (5.4.1) | None |
 | **Streamlit (Demo UI)** | `pip install streamlit` | ~10 MB | Installed (1.51.0) | None |
 | **Matplotlib (Charts)** | `pip install matplotlib` | ~30 MB | Installed | None |
-| **MiniLM Embedding Model** | Hugging Face Hub | ~80 MB | Auto-download on run | None (Handled by script) |
-| **50k Text Corpus** | Hugging Face / Wikipedia subset | ~12 MB | Auto-download on run | None (Handled by script) |
+| **Real Corpus (5k expanded to 50k)** | AG News CSV (or `--synthetic` offline) | ~29 MB | Auto-download on run | None (Handled by script) |
 | **Screen Recorder** | GNOME / Kazam / OBS | - | Optional for video | Ensure you have one ready |
 
 ---
