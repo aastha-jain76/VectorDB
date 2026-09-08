@@ -228,8 +228,10 @@ def generate_synthetic_dataset(
 def main(force_recompute: bool = False, synthetic: bool = False):
     os.makedirs(CACHE_DIR, exist_ok=True)
 
+    should_recompute = force_recompute or synthetic
+
     if (
-        not force_recompute 
+        not should_recompute 
         and os.path.exists(VECTORS_PATH) 
         and os.path.exists(METADATA_PATH)
         and os.path.exists(QUERIES_PATH)

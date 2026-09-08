@@ -80,6 +80,9 @@ class BruteForceIndex(BaseVectorIndex):
         if len(vectors) != len(ids):
             raise ValueError(f"Length mismatch: {len(vectors)} vectors vs {len(ids)} IDs")
         
+        if len(set(ids)) != len(ids):
+            raise ValueError("Duplicate IDs detected in batch_insert. IDs within a batch must be unique.")
+        
         vecs_norm = l2_normalize(vectors)
         n, d = vecs_norm.shape
         

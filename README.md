@@ -72,7 +72,7 @@ IT_Geeks/
 │   ├── hnsw.py              # Hierarchical Navigable Small World graph index
 │   └── kmeans.py            # Scratch K-Means (k-means++ init & Lloyd's iteration)
 ├── api/
-│   └── server.py            # Production FastAPI REST microservice
+│   └── server.py            # FastAPI REST API over custom vector indices
 ├── data/
 │   ├── prepare_data.py      # Embeds real text corpus and precomputes ground truth
 │   └── corpus/              # AG News CSV dataset (auto-downloaded)

@@ -216,6 +216,10 @@ class HNSWIndex(BaseVectorIndex):
         metadatas: Optional[List[Dict[str, Any]]] = None
     ) -> None:
         """Batch insert vectors into HNSW."""
+        if len(vectors) != len(ids):
+            raise ValueError(f"Length mismatch: {len(vectors)} vectors vs {len(ids)} IDs")
+        if len(set(ids)) != len(ids):
+            raise ValueError("Duplicate IDs detected in batch_insert. IDs within a batch must be unique.")
         for i, (vid, vec) in enumerate(zip(ids, vectors)):
             meta = metadatas[i] if metadatas and i < len(metadatas) else None
             self.insert(vid, vec, meta)

@@ -102,7 +102,7 @@ class SearchRequest(BaseModel):
     vector: Optional[List[float]] = Field(None, description="Pre-computed dense vector")
     index: str = Field("ivf", description="Index to query: 'ivf' (approximate) or 'brute_force' (exact)")
     top_k: int = Field(10, ge=1, le=100, description="Number of nearest neighbors to retrieve")
-    n_probe: Optional[int] = Field(8, ge=1, le=256, description="Voronoi clusters to probe for IVF")
+    n_probe: Optional[int] = Field(8, ge=1, le=1024, description="Voronoi clusters to probe for IVF")
 
 
 class SearchResultItem(BaseModel):
@@ -183,9 +183,11 @@ def search_vectors(req: SearchRequest):
     t0 = time.perf_counter()
 
     if idx_type in ("ivf", "ivf_flat", "approximate"):
-        probe = req.n_probe if req.n_probe is not None else 8
-        raw_results = ivf_index.search(q_vec, top_k=req.top_k, n_probe=probe)
-        index_used = f"ivf_flat (n_probe={probe})"
+        default_p = getattr(ivf_index, "n_probe", 8)
+        req_p = req.n_probe if req.n_probe is not None else default_p
+        effective_probe = min(max(req_p, 1), ivf_index.n_clusters)
+        raw_results = ivf_index.search(q_vec, top_k=req.top_k, n_probe=effective_probe)
+        index_used = f"ivf_flat (n_probe={effective_probe})"
         candidates_evaluated = getattr(ivf_index, "last_candidate_count", len(raw_results))
     elif idx_type in ("brute_force", "bf", "exact"):
         raw_results = bf_index.search(q_vec, top_k=req.top_k)
@@ -260,22 +262,40 @@ def delete_vector(vector_id: Union[int, str]):
     if bf_index is None or ivf_index is None:
         raise HTTPException(status_code=503, detail="Indices not initialized")
 
-    # Try integer conversion if possible
     del_id = vector_id
     if isinstance(vector_id, str) and vector_id.isdigit():
         del_id = int(vector_id)
 
+    # 1. Check presence in both indices
+    exists_bf = del_id in bf_index.id_to_idx
+    exists_ivf = del_id in ivf_index.id_to_idx
+
+    # Fallback to string ID if integer lookup missed
+    if not (exists_bf or exists_ivf) and str(vector_id) != del_id:
+        del_id = str(vector_id)
+        exists_bf = del_id in bf_index.id_to_idx
+        exists_ivf = del_id in ivf_index.id_to_idx
+
+    if not exists_bf and not exists_ivf:
+        raise HTTPException(status_code=404, detail=f"Vector ID '{vector_id}' not found")
+
+    # If an anomaly occurred where one index has it and the other does not:
+    if exists_bf != exists_ivf:
+        if exists_bf:
+            bf_index.delete(del_id)
+        if exists_ivf:
+            ivf_index.delete(del_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"State desynchronization detected for ID '{del_id}'. Resynchronized by removing orphaned entry."
+        )
+
+    # Synchronized deletion: both must succeed
     bf_ok = bf_index.delete(del_id)
     ivf_ok = ivf_index.delete(del_id)
 
-    # Fallback to string if int failed
-    if not (bf_ok or ivf_ok) and del_id != str(vector_id):
-        bf_ok = bf_index.delete(str(vector_id))
-        ivf_ok = ivf_index.delete(str(vector_id))
-        del_id = str(vector_id)
-
-    if not (bf_ok or ivf_ok):
-        raise HTTPException(status_code=404, detail=f"Vector ID '{vector_id}' not found")
+    if not (bf_ok and ivf_ok):
+        raise HTTPException(status_code=500, detail="Failed to delete vector cleanly from both indices")
 
     return GenericResponse(
         status="success",

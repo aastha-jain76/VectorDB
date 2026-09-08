@@ -107,3 +107,34 @@ def test_untrained_ivf_insert_error_api(client):
     finally:
         server.ivf_index = orig_ivf
 
+
+def test_effective_probe_reporting(client):
+    # Request n_probe=999 which exceeds n_clusters
+    resp = client.post("/search", json={
+        "query": "artificial intelligence",
+        "index": "ivf",
+        "top_k": 3,
+        "n_probe": 999
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    effective_k = server.ivf_index.n_clusters
+    assert data["index_used"] == f"ivf_flat (n_probe={effective_k})"
+
+
+def test_desynchronized_deletion_handling(client):
+    # Artificially insert a vector only into BF to simulate orphaned state
+    test_id = "orphan_doc_999"
+    q_vec = np.random.randn(server.dimension).astype(np.float32)
+    server.bf_index.insert(test_id, q_vec)
+    assert test_id in server.bf_index.id_to_idx
+    assert test_id not in server.ivf_index.id_to_idx
+
+    # Attempting to delete should detect state desynchronization, purge the orphan, and return 500
+    del_resp = client.delete(f"/vectors/{test_id}")
+    assert del_resp.status_code == 500
+    assert "desynchronization detected" in del_resp.json()["detail"]
+    assert test_id not in server.bf_index.id_to_idx
+    assert test_id not in server.ivf_index.id_to_idx
+
+

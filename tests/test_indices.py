@@ -130,3 +130,22 @@ def test_ivf_untrained_insert_raises():
     with pytest.raises(RuntimeError, match="must be trained"):
         ivf.insert("doc_1", vec)
 
+
+def test_batch_insert_duplicate_ids_raises():
+    rng = np.random.default_rng(42)
+    vecs = rng.normal(size=(3, 8))
+    duplicate_ids = ["doc_1", "doc_2", "doc_1"]
+
+    bf = BruteForceIndex(dimension=8)
+    with pytest.raises(ValueError, match="Duplicate IDs detected"):
+        bf.batch_insert(vecs, duplicate_ids)
+
+    ivf = IVFFlatIndex(n_clusters=2, dimension=8)
+    with pytest.raises(ValueError, match="Duplicate IDs detected"):
+        ivf.batch_insert(vecs, duplicate_ids)
+
+    hnsw = HNSWIndex(dimension=8)
+    with pytest.raises(ValueError, match="Duplicate IDs detected"):
+        hnsw.batch_insert(vecs, duplicate_ids)
+
+
