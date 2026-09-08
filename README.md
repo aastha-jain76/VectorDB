@@ -95,8 +95,6 @@ VectorDB/
 │   ├── benchmark_report.md      # Generated evaluation metrics report & crossover analysis
 │   ├── design.md                # Core algorithms & index technical design document
 │   ├── prd.md                   # Product Requirements Document (functional & non-functional)
-│   ├── requirements_checklist.md # Deliverables & assignment verification checklist
-│   ├── rules.md                 # Engineering invariants & pure-NumPy math constraints
 │   └── testing.md               # Quality assurance specification & test cases
 ├── cache/                       # Precomputed binary caches (auto-generated)
 │   ├── vectors_50k.npy          # 50,000 dense vectors (dim=384)
