@@ -1,0 +1,26 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Pre-computed datasets and binary cache (can be regenerated via data/prepare_data.py)
+cache/
+data/corpus/*.csv
+
+# Environment and IDE files
+.venv/
+env/
+venv/
+.idea/
+.vscode/
+.DS_Store
+
+# Temporary outputs
+*.log
+
+# Documentation and problem statement screenshots (local only)
+Problem_Statement.png
+Screenshot*.png
+*.png
+!evaluation/results/tradeoff_curve.png

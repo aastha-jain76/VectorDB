@@ -1,0 +1,14 @@
+# Core Linear Algebra & Numerical Computing (Strictly zero external ANN libraries)
+numpy>=2.0.0
+
+# Embedding Generation (Used solely to encode raw corpus texts to static vectors)
+sentence-transformers>=3.0.0
+torch>=2.0.0
+torchvision>=0.20.0
+
+# Interactive Web Application & Benchmarking Visualizations
+streamlit>=1.30.0
+matplotlib>=3.8.0
+
+# Verification & Unit Testing
+pytest>=8.0.0
