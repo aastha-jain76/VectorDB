@@ -29,6 +29,7 @@ class BruteForceIndex(BaseVectorIndex):
         self.idx_to_id: List[Union[int, str]] = []
         self.metadatas: Dict[Union[int, str], Dict[str, Any]] = {}
         self._active_count = 0
+        self.last_candidate_count: int = 0
 
     def insert(
         self, 
@@ -116,6 +117,7 @@ class BruteForceIndex(BaseVectorIndex):
     ) -> List[Tuple[Union[int, str], float, Dict[str, Any]]]:
         """Exhaustive linear scan computing dot product against all active vectors."""
         if self._active_count == 0:
+            self.last_candidate_count = 0
             return []
 
         q_norm = l2_normalize(query_vector).reshape(-1)
@@ -123,6 +125,7 @@ class BruteForceIndex(BaseVectorIndex):
             raise ValueError(f"Query dim {q_norm.shape[0]} != index dim {self.dimension}")
 
         active_n = len(self.idx_to_id)
+        self.last_candidate_count = active_n
         # Sliced view of valid active vectors
         active_matrix = self.vectors[:active_n]
 

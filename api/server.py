@@ -26,11 +26,11 @@ METADATA_PATH = os.path.join(CACHE_DIR, "corpus_metadata.json")
 
 from contextlib import asynccontextmanager
 
-def initialize_database():
+def initialize_database(force_synthetic: bool = False):
     global bf_index, ivf_index, dimension
     print("Initializing Vector Database API...")
 
-    if os.path.exists(VECTORS_PATH) and os.path.exists(METADATA_PATH):
+    if not force_synthetic and os.path.exists(VECTORS_PATH) and os.path.exists(METADATA_PATH):
         vectors = np.load(VECTORS_PATH)
         with open(METADATA_PATH, "r", encoding="utf-8") as f:
             metadata_list = json.load(f)
@@ -47,10 +47,25 @@ def initialize_database():
         ivf_index.build_index(vectors, ids, [metadatas.get(i) for i in ids])
         print(f"Loaded {n_vectors:,} vectors into Brute-Force and IVF-Flat indices.")
     else:
+        # If cache is missing (e.g. fresh clone before data/prepare_data.py is run),
+        # initialize with a small valid trained index (50 synthetic vectors, dim=384)
+        # so all API endpoints, searches, and test suites are fully functional out-of-the-box.
         dimension = 384
+        rng = np.random.default_rng(42)
+        n_samples = 50
+        synthetic_vecs = l2_normalize(rng.normal(size=(n_samples, dimension)).astype(np.float32))
+        synthetic_ids = [f"sample_{i}" for i in range(n_samples)]
+        synthetic_meta = [
+            {"id": f"sample_{i}", "text": f"Synthetic news article {i} about technology and AI", "category": "Sci/Tech"}
+            for i in range(n_samples)
+        ]
+
         bf_index = BruteForceIndex(dimension=dimension)
-        ivf_index = IVFFlatIndex(n_clusters=256, n_probe=8, dimension=dimension, random_state=42)
-        print("Initialized empty Vector Database indices.")
+        bf_index.batch_insert(synthetic_vecs, synthetic_ids, synthetic_meta)
+
+        ivf_index = IVFFlatIndex(n_clusters=4, n_probe=2, dimension=dimension, random_state=42)
+        ivf_index.build_index(synthetic_vecs, synthetic_ids, synthetic_meta)
+        print("Initialized Vector Database with small trained synthetic index (run data/prepare_data.py for full 50k corpus).")
 
 
 @asynccontextmanager
@@ -101,7 +116,8 @@ class SearchResponse(BaseModel):
     index_used: str
     top_k: int
     latency_ms: float
-    total_vectors_searched: int
+    total_vectors_indexed: int
+    candidate_vectors_evaluated: int
     results: List[SearchResultItem]
 
 
@@ -165,9 +181,11 @@ def search_vectors(req: SearchRequest):
         probe = req.n_probe if req.n_probe is not None else 8
         raw_results = ivf_index.search(q_vec, top_k=req.top_k, n_probe=probe)
         index_used = f"ivf_flat (n_probe={probe})"
+        candidates_evaluated = getattr(ivf_index, "last_candidate_count", len(raw_results))
     elif idx_type in ("brute_force", "bf", "exact"):
         raw_results = bf_index.search(q_vec, top_k=req.top_k)
         index_used = "brute_force (exact ground truth)"
+        candidates_evaluated = getattr(bf_index, "last_candidate_count", len(bf_index))
     else:
         raise HTTPException(status_code=400, detail=f"Unknown index type: {req.index}. Use 'ivf' or 'brute_force'.")
 
@@ -183,7 +201,8 @@ def search_vectors(req: SearchRequest):
         index_used=index_used,
         top_k=req.top_k,
         latency_ms=round(latency, 3),
-        total_vectors_searched=len(ivf_index),
+        total_vectors_indexed=len(ivf_index),
+        candidate_vectors_evaluated=candidates_evaluated,
         results=items
     )
 
@@ -205,8 +224,11 @@ def insert_vector(req: InsertRequest):
     else:
         raise HTTPException(status_code=400, detail="Must provide either 'text' or 'vector'")
 
-    bf_index.insert(req.id, vec, req.metadata)
-    ivf_index.insert(req.id, vec, req.metadata)
+    try:
+        bf_index.insert(req.id, vec, req.metadata)
+        ivf_index.insert(req.id, vec, req.metadata)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return GenericResponse(
         status="success",

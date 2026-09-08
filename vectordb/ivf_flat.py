@@ -51,6 +51,7 @@ class IVFFlatIndex(BaseVectorIndex):
         self.idx_to_cluster: List[int] = []
         self.metadatas: Dict[Union[int, str], Dict[str, Any]] = {}
         self._active_count = 0
+        self.last_candidate_count: int = 0
 
     def train(self, vectors: np.ndarray) -> "IVFFlatIndex":
         """Train K-Means centroids on a representative sample of vectors.
@@ -91,9 +92,10 @@ class IVFFlatIndex(BaseVectorIndex):
     ) -> None:
         """Insert or update a single vector into the inverted file index."""
         if not self.is_trained:
-            # First vector initializes dimension; if untrained, initialize single centroid
-            vec = l2_normalize(vector).reshape(1, -1)
-            self.train(vec)
+            raise RuntimeError(
+                "IVFFlatIndex must be trained via train() or build_index() before single inserts. "
+                "IVF requires K centroids to partition the vector space."
+            )
         
         vec_norm = l2_normalize(vector).reshape(1, -1)
         if vec_norm.shape[1] != self.dimension:
@@ -195,6 +197,7 @@ class IVFFlatIndex(BaseVectorIndex):
             List of (vector_id, score, metadata) tuples.
         """
         if self._active_count == 0 or not self.is_trained:
+            self.last_candidate_count = 0
             return []
 
         probe = n_probe if n_probe is not None else self.n_probe
@@ -217,7 +220,10 @@ class IVFFlatIndex(BaseVectorIndex):
             candidate_indices.extend(self.inverted_lists[c])
 
         if not candidate_indices:
+            self.last_candidate_count = 0
             return []
+
+        self.last_candidate_count = len(candidate_indices)
 
         cand_indices_arr = np.array(candidate_indices, dtype=np.int64)
         # Sliced candidate matrix (M, D) where M << N

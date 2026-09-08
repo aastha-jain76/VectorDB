@@ -29,6 +29,36 @@
 
 ---
 
+## 🏗️ Architecture & Search Flow
+
+The system benchmarks an exact mathematical baseline against an inverted approximate index to quantify the trade-off between retrieval speed and recall accuracy:
+
+```mermaid
+flowchart TD
+    Q["Query: Natural Language Query or Dense Vector (D=384)"] --> N["L2 Normalization: q_norm = q / ||q||"]
+    
+    subgraph BF["Brute-Force Baseline (Exact Ground Truth)"]
+        N --> BF_MATMUL["Exhaustive Dot Product: X · q_norm<br/>(Scans all N = 50,000 vectors)"]
+        BF_MATMUL --> BF_SORT["Argpartition Top-k Sort"]
+        BF_SORT --> BF_RES["Exact Top-10 Results<br/>(100% Recall, ~2.95 ms)"]
+    end
+    
+    subgraph IVF["IVF-Flat Index (Sub-Linear Approximation)"]
+        N --> IVF_ROUTING["1. Centroid Routing: C · q_norm<br/>(Cosine sim against K=256 centroids)"]
+        IVF_ROUTING --> IVF_PROBE["2. Multi-Probe Centroid Selection<br/>(Select top n_probe Voronoi cells)"]
+        IVF_PROBE --> IVF_POSTING["3. Posting List Traversal<br/>(Gather M << N candidate vectors)"]
+        IVF_POSTING --> IVF_PRUNED["4. Pruned Dot Product: X_cand · q_norm<br/>(Evaluates only ~1,560 vectors at n_probe=8)"]
+        IVF_PRUNED --> IVF_SORT["5. Candidate Top-k Ranking"]
+        IVF_SORT --> IVF_RES["Approx Top-10 Results<br/>(93.14% Recall, ~1.21 ms, 2.44x Speedup)"]
+    end
+    
+    BF_RES --> EVAL["Evaluation Engine & Benchmarking"]
+    IVF_RES --> EVAL
+    EVAL --> METRICS["Recall@10 = |BF ∩ IVF| / 10<br/>Latency Percentiles (p50, p95, p99)<br/>QPS & Speedup Trade-off Curve"]
+```
+
+---
+
 ## 📂 Project Structure
 
 ```
@@ -45,7 +75,7 @@ IT_Geeks/
 │   └── server.py            # Production FastAPI REST microservice
 ├── data/
 │   ├── prepare_data.py      # Embeds real text corpus and precomputes ground truth
-│   └── corpus/              # AG News CSV dataset
+│   └── corpus/              # AG News CSV dataset (auto-downloaded)
 ├── evaluation/
 │   ├── benchmark.py         # 500-query benchmark runner & trade-off curve plotter
 │   ├── reporter.py          # Formats benchmark summary into Markdown
@@ -58,9 +88,11 @@ IT_Geeks/
 │   ├── test_distance.py     # Math & distance primitive unit tests
 │   ├── test_kmeans.py       # Scratch K-Means convergence tests
 │   └── test_indices.py      # CRUD lifecycle tests for all indices
+├── pytest.ini               # Pytest test discovery & PYTHONPATH configuration
 ├── run_api.sh               # One-click FastAPI server launcher
 ├── run_benchmark.sh         # One-click benchmark runner
 ├── run_demo.sh              # One-click demo launcher
+├── requirements.txt         # Project dependencies
 └── README.md
 ```
 

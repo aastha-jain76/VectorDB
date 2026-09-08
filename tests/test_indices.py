@@ -123,3 +123,10 @@ def test_hnsw_reinsert_tombstone():
     assert res[0][0] == "id_5"
     assert res[0][2]["text"] == "re-inserted 5"
 
+
+def test_ivf_untrained_insert_raises():
+    ivf = IVFFlatIndex(n_clusters=4, n_probe=2, dimension=8)
+    vec = np.random.randn(8)
+    with pytest.raises(RuntimeError, match="must be trained"):
+        ivf.insert("doc_1", vec)
+

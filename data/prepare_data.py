@@ -38,7 +38,18 @@ CATEGORY_MAP = {
 def load_raw_texts(num_corpus: int = 5000, num_queries: int = 500):
     """Load real sentences from AG News dataset."""
     if not os.path.exists(AG_NEWS_CSV):
-        raise FileNotFoundError(f"Corpus file not found: {AG_NEWS_CSV}")
+        os.makedirs(DATA_DIR, exist_ok=True)
+        url = "https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/train.csv"
+        print(f"Dataset not found locally. Downloading AG News dataset from {url}...")
+        import urllib.request
+        try:
+            urllib.request.urlretrieve(url, AG_NEWS_CSV)
+            print(f"Downloaded AG News dataset successfully to {AG_NEWS_CSV}.")
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to download dataset from {url}: {e}\n"
+                f"Please manually place ag_news_train.csv into {DATA_DIR}/."
+            ) from e
 
     corpus_texts = []
     corpus_metadata = []
