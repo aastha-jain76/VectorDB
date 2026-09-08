@@ -153,7 +153,12 @@ def get_stats():
         "dimension": dimension,
         "indices": {
             "brute_force": {"active_vectors": total_bf, "type": "exact_linear_scan"},
-            "ivf_flat": {"active_vectors": total_ivf, "n_clusters": 256, "default_n_probe": 8}
+            "ivf_flat": {
+                "active_vectors": total_ivf,
+                "n_clusters": ivf_index.n_clusters if ivf_index else 0,
+                "default_n_probe": ivf_index.n_probe if ivf_index else 0,
+                "is_trained": ivf_index.is_trained if ivf_index else False
+            }
         }
     }
 
@@ -224,11 +229,24 @@ def insert_vector(req: InsertRequest):
     else:
         raise HTTPException(status_code=400, detail="Must provide either 'text' or 'vector'")
 
+    if not ivf_index.is_trained:
+        raise HTTPException(
+            status_code=400,
+            detail="IVFFlatIndex must be trained via train() or build_index() before single inserts."
+        )
+
+    # Atomic insertion across both indices with rollback on failure
+    try:
+        ivf_index.insert(req.id, vec, req.metadata)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to insert into IVF-Flat index: {e}")
+
     try:
         bf_index.insert(req.id, vec, req.metadata)
-        ivf_index.insert(req.id, vec, req.metadata)
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Rollback IVF insertion if BruteForce insert fails
+        ivf_index.delete(req.id)
+        raise HTTPException(status_code=500, detail=f"Failed to insert into Brute-Force index: {e}")
 
     return GenericResponse(
         status="success",

@@ -30,7 +30,10 @@ def test_stats(client):
     data = resp.json()
     assert "total_vectors" in data
     assert data["dimension"] == 384
-    assert data["indices"]["ivf_flat"]["n_clusters"] == 256 or data["total_vectors"] > 0
+    ivf_info = data["indices"]["ivf_flat"]
+    assert ivf_info["n_clusters"] in (4, 256)
+    assert ivf_info["default_n_probe"] in (2, 8)
+    assert ivf_info["is_trained"] is True
 
 
 def test_search_and_crud(client):

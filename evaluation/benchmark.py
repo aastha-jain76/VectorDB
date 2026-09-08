@@ -54,6 +54,10 @@ def run_benchmarks():
     bf_build_time = time.time() - t0
     print(f"Brute-Force index built in {bf_build_time:.4f}s.")
 
+    # Warm-up CPU caches and BLAS threads (unmeasured)
+    for wq in queries[:10]:
+        _ = bf_index.search(wq, top_k=10)
+
     bf_latencies = []
     for q in queries:
         t_start = time.perf_counter_ns()
@@ -77,6 +81,10 @@ def run_benchmarks():
     ivf_index.build_index(vectors, list(range(n_vectors)))
     ivf_build_time = time.time() - t0
     print(f"IVF-Flat Index built in {ivf_build_time:.2f}s.")
+
+    # Warm-up IVF search
+    for wq in queries[:10]:
+        _ = ivf_index.search(wq, top_k=10, n_probe=8)
 
     probe_list = [1, 2, 4, 8, 16, 32, 64]
     ivf_results = []
