@@ -88,6 +88,9 @@ VectorDB/
 │   ├── test_distance.py     # Math & distance primitive unit tests
 │   ├── test_kmeans.py       # Scratch K-Means convergence tests
 │   └── test_indices.py      # CRUD lifecycle tests for all indices
+├── docs/
+│   ├── architecture.md      # Detailed system architecture document
+│   └── benchmark_report.md  # Generated evaluation metrics report
 ├── pytest.ini               # Pytest test discovery & PYTHONPATH configuration
 ├── run_api.sh               # One-click FastAPI server launcher
 ├── run_benchmark.sh         # One-click benchmark runner
@@ -123,29 +126,55 @@ Executes 500 queries against both Brute-Force and IVF-Flat across varying $n_{\t
 ```
 
 ### 4. Launch FastAPI REST Server
-Start the lightweight educational HTTP REST service with interactive Swagger UI:
+Start the high-performance HTTP REST service with interactive Swagger UI:
 ```bash
 ./run_api.sh
-```
-Or directly:
-```bash
+# or directly:
 python3 -m uvicorn api.server:app --port 8000
 ```
-Interactive Swagger docs: `http://localhost:8000/docs`
+Interactive Swagger documentation: `http://localhost:8000/docs`
 
-### 5. Launch Interactive UI Demo
-#### Web Application (Recommended for Demo Video):
+### 5. Launch Interactive User Interfaces
+
+#### Streamlit Web Dashboard:
 ```bash
 ./run_demo.sh
-```
-Or directly:
-```bash
+# or directly:
 streamlit run demo/app.py
 ```
+Open `http://localhost:8501` to execute natural language semantic search, evaluate side-by-side latency comparisons between Brute-Force and IVF-Flat, and verify real-time vector deletion.
 
-#### Terminal CLI Demo:
+#### Terminal CLI Demonstrator:
 ```bash
 ./run_demo.sh --cli
+# or directly:
+python3 demo/cli_demo.py
+```
+
+---
+
+## 🌐 REST API Endpoints
+
+The service exposes high-throughput vector search and lifecycle endpoints:
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Service health status and readiness check |
+| `GET` | `/stats` | Live index metrics: indexed vectors, centroids, dimensions |
+| `POST` | `/search` | Query similarity search across IVF-Flat or Brute Force |
+| `POST` | `/insert` | Ingest vector with metadata (with atomic rollback protection) |
+| `DELETE` | `/vectors/{id}` | Synchronized vector removal with posting list compaction |
+
+#### Example: Semantic Vector Search
+```bash
+curl -X POST "http://localhost:8000/search" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "query_text": "space shuttle rocket launch",
+       "top_k": 5,
+       "index_type": "ivf_flat",
+       "n_probe": 8
+     }'
 ```
 
 ---
@@ -153,7 +182,7 @@ streamlit run demo/app.py
 ## 📊 Benchmark Summary: The Approximation Cost
 
 > **🖥️ Test Environment & Hardware Profile**:  
-> Measured on **11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz** (4 Cores, 8 vCPUs), 16 GB RAM, Ubuntu Linux, Python 3.13.9, NumPy 2.5.2, PyTorch 2.14.0 (CPU), `SEED = 42`. Latency and QPS depend on hardware.
+> Measured on **11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz** (4 Cores, 8 vCPUs), **8 GB RAM**, Ubuntu Linux, Python 3.13.9, NumPy 2.5.2, PyTorch 2.14.0 (CPU), `SEED = 42`. Latency and QPS depend on hardware.
 
 Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$):
 
@@ -171,12 +200,6 @@ Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$):
 > **Key Finding (The Crossover Point)**:  
 > For our 50k-vector dataset on our test machine, IVF-Flat achieves **93.14% Recall@10** at **2.61x speedup** with $n_{\text{probe}}=8$, providing the best measured balance of recall and sub-linear latency. However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
 
----
+### 📈 Recall vs. Latency Trade-Off Curve
 
-## 🎥 Recording Your Demo Video
-
-1. Start the Streamlit app: `streamlit run demo/app.py`
-2. Open your browser at `http://localhost:8501`.
-3. Type any query (e.g. *"space shuttle rocket launch"* or *"Wall Street stock market gains"*).
-4. Highlight the **Top Matches**, the **Brute Force vs IVF-Flat timing**, and the **Speedup Multiplier**.
-5. Test vector deletion live using the **Vector Deletion Test** panel in the sidebar to prove real-time deletion!
+![Trade-off Curve](evaluation/results/tradeoff_curve.png)

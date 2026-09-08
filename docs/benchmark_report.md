@@ -7,7 +7,7 @@
 
 ### 🖥️ Test Environment & Hardware Specifications
 - **CPU**: 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz (4 Physical Cores, 8 vCPUs)
-- **RAM**: 16 GB DDR4
+- **RAM**: 8 GB DDR4
 - **Operating System**: Linux (x86_64, Ubuntu base)
 - **Runtime**: Python 3.13.9, NumPy 2.5.2, PyTorch 2.14.0+cpu
 > *Note: Latency and QPS figures are hardware-dependent. All metrics reported below were empirically measured on this machine under `SEED = 42`.*
