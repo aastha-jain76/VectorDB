@@ -133,7 +133,14 @@ class HNSWIndex(BaseVectorIndex):
             raise ValueError(f"Vector dim {vec_norm.shape[0]} != index dim {self.dimension}")
 
         if vector_id in self.id_to_idx:
-            self.delete(vector_id)
+            old_node_id = self.id_to_idx[vector_id]
+            if old_node_id not in self.tombstones:
+                self.tombstones.add(old_node_id)
+                self._active_count -= 1
+            self.idx_to_id[old_node_id] = None
+            del self.id_to_idx[vector_id]
+            if vector_id in self.metadatas:
+                del self.metadatas[vector_id]
 
         node_id = len(self.vectors)
         self.vectors.append(vec_norm)
@@ -249,7 +256,7 @@ class HNSWIndex(BaseVectorIndex):
         # 3. Filter out tombstoned nodes and format results
         results = []
         for dist, node_id in candidates:
-            if node_id in self.tombstones:
+            if node_id in self.tombstones or self.idx_to_id[node_id] is None:
                 continue
             vid = self.idx_to_id[node_id]
             sim_score = 1.0 - dist
@@ -301,7 +308,7 @@ class HNSWIndex(BaseVectorIndex):
             return 0
 
         # Extract active items
-        active_ids = [vid for vid in self.idx_to_id if self.id_to_idx[vid] not in self.tombstones]
+        active_ids = [vid for vid in self.idx_to_id if vid is not None and self.id_to_idx.get(vid) not in self.tombstones]
         active_vectors = [self.vectors[self.id_to_idx[vid]] for vid in active_ids]
         active_metas = [self.metadatas.get(vid) for vid in active_ids]
 

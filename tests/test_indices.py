@@ -99,3 +99,27 @@ def test_hnsw_compaction():
     assert len(results) == 3
     assert results[0][0] == "id_10"
 
+
+def test_hnsw_reinsert_tombstone():
+    rng = np.random.default_rng(42)
+    dim = 8
+    hnsw = HNSWIndex(m=4, ef_construction=8, ef_search=8, dimension=dim, random_state=42)
+    data = l2_normalize(rng.normal(size=(10, dim)))
+    ids = [f"id_{i}" for i in range(10)]
+    hnsw.batch_insert(data, ids)
+
+    # Delete id_5
+    assert hnsw.delete("id_5") is True
+    assert len(hnsw) == 9
+
+    # Re-insert id_5 with a new vector
+    new_v = l2_normalize(rng.normal(size=dim))
+    hnsw.insert("id_5", new_v, {"text": "re-inserted 5"})
+    assert len(hnsw) == 10
+
+    # Search with new vector, should retrieve id_5 as top 1
+    res = hnsw.search(new_v, top_k=1)
+    assert len(res) == 1
+    assert res[0][0] == "id_5"
+    assert res[0][2]["text"] == "re-inserted 5"
+

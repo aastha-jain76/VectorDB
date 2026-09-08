@@ -22,7 +22,8 @@
 - **Rigorous Evaluation Suite**:
   - 500 test queries evaluated against exact ground truth.
   - Automated measurement of Recall@10, latency percentiles ($p50, p95, p99$), QPS, and speedup trade-off curves.
-- **Interactive Demonstrator**:
+- **Interactive Demonstrator & REST API**:
+  - **FastAPI REST Service** (`api/server.py`) exposing `/search`, `/insert`, `/delete`, and `/stats` with Swagger OpenAPI documentation (`http://localhost:8000/docs`).
   - Sleek **Streamlit Web UI** (`demo/app.py`) for live natural language query search, side-by-side comparison, and real-time deletion testing.
   - Interactive **CLI Terminal Demo** (`demo/cli_demo.py`).
 
@@ -40,6 +41,8 @@ IT_Geeks/
 │   ├── ivf_flat.py          # Inverted file index with Voronoi cells & posting lists
 │   ├── hnsw.py              # Hierarchical Navigable Small World graph index
 │   └── kmeans.py            # Scratch K-Means (k-means++ init & Lloyd's iteration)
+├── api/
+│   └── server.py            # Production FastAPI REST microservice
 ├── data/
 │   ├── prepare_data.py      # Embeds real text corpus and precomputes ground truth
 │   └── corpus/              # AG News CSV dataset
@@ -51,9 +54,11 @@ IT_Geeks/
 │   ├── app.py               # Streamlit interactive Web UI
 │   └── cli_demo.py          # Terminal interactive CLI demo
 ├── tests/
+│   ├── test_api.py          # FastAPI REST endpoint integration tests
 │   ├── test_distance.py     # Math & distance primitive unit tests
 │   ├── test_kmeans.py       # Scratch K-Means convergence tests
 │   └── test_indices.py      # CRUD lifecycle tests for all indices
+├── run_api.sh               # One-click FastAPI server launcher
 ├── run_benchmark.sh         # One-click benchmark runner
 ├── run_demo.sh              # One-click demo launcher
 └── README.md
@@ -81,7 +86,18 @@ Executes 500 queries against both Brute-Force and IVF-Flat across varying $n_{\t
 ./run_benchmark.sh
 ```
 
-### 4. Launch Interactive Demo
+### 4. Launch FastAPI REST Server
+Start the production-grade HTTP REST service with interactive Swagger UI:
+```bash
+./run_api.sh
+```
+Or directly:
+```bash
+python3 -m uvicorn api.server:app --port 8000
+```
+Interactive Swagger docs: `http://localhost:8000/docs`
+
+### 5. Launch Interactive UI Demo
 #### Web Application (Recommended for Demo Video):
 ```bash
 ./run_demo.sh
@@ -100,7 +116,10 @@ streamlit run demo/app.py
 
 ## 📊 Benchmark Summary: The Approximation Cost
 
-Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$, CPU execution):
+> **🖥️ Test Environment & Hardware Profile**:  
+> Measured on **11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz** (4 Cores, 8 vCPUs), 16 GB RAM, Ubuntu Linux, Python 3.13.9, NumPy 2.5.2, PyTorch 2.14.0 (CPU), `SEED = 42`. Latency and QPS depend on hardware.
+
+Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$):
 
 | Index | Configuration | Recall@10 | Mean Latency | Speedup vs BF | QPS |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -114,7 +133,7 @@ Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$, CP
 | **IVF-Flat** | $n_{\text{probe}} = 64$ | **99.40%** | 10.91 ms | 0.27x *(3.7x slower)* | 91.6 |
 
 > **Key Finding (The Crossover Point)**:  
-> IVF-Flat achieves **93.14% Recall@10** at **2.44x speedup** ($n_{\text{probe}}=8$). However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
+> On our CPU, IVF-Flat achieves **93.14% Recall@10** at **2.44x speedup** ($n_{\text{probe}}=8$). However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
 
 ---
 
