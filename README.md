@@ -63,40 +63,55 @@ flowchart TD
 
 ```
 VectorDB/
-├── vectordb/                # Core Vector Database Engine (Pure NumPy)
-│   ├── __init__.py
-│   ├── base.py              # BaseVectorIndex abstract interface
-│   ├── distance.py          # L2 normalization, cosine similarity, euclidean dist
-│   ├── brute_force.py       # Exact linear scan ground truth
-│   ├── ivf_flat.py          # Inverted file index with Voronoi cells & posting lists
-│   ├── hnsw.py              # Hierarchical Navigable Small World graph index
-│   └── kmeans.py            # Scratch K-Means (k-means++ init & Lloyd's iteration)
+├── vectordb/                    # Core Vector Database Engine (Pure NumPy)
+│   ├── __init__.py              # Package exports (BruteForce, IVFFlat, HNSW)
+│   ├── base.py                  # BaseVectorIndex abstract base interface
+│   ├── distance.py              # L2 normalization, cosine similarity, euclidean distance
+│   ├── brute_force.py           # Exact linear scan ground truth oracle
+│   ├── ivf_flat.py              # Inverted file index with Voronoi cells & posting lists
+│   ├── hnsw.py                  # Hierarchical Navigable Small World skip-graph index
+│   └── kmeans.py                # Scratch K-Means (k-means++ initialization & Lloyd's iteration)
 ├── api/
-│   └── server.py            # FastAPI REST API over custom vector indices
+│   └── server.py                # FastAPI REST API with endpoints, rollback, & telemetry
 ├── data/
-│   ├── prepare_data.py      # Embeds real text corpus and precomputes ground truth
-│   └── corpus/              # AG News CSV dataset (auto-downloaded)
-├── evaluation/
-│   ├── benchmark.py         # 500-query benchmark runner & trade-off curve plotter
-│   ├── reporter.py          # Formats benchmark summary into Markdown
-│   └── results/             # Benchmark JSONs and tradeoff_curve.png
+│   ├── prepare_data.py          # Data pipeline: AG News encoding, synthetic mode, & ground truth
+│   └── corpus/                  # Dataset storage (auto-downloads ag_news_train.csv)
 ├── demo/
-│   ├── app.py               # Streamlit interactive Web UI
-│   └── cli_demo.py          # Terminal interactive CLI demo
+│   ├── app.py                   # Streamlit interactive Web UI dashboard
+│   └── cli_demo.py              # Terminal interactive CLI demonstrator
+├── evaluation/
+│   ├── benchmark.py             # 500-query benchmark runner & trade-off curve plotter
+│   ├── reporter.py              # Automated Markdown benchmark report generator
+│   └── results/                 # Evaluation artifacts
+│       ├── benchmark_summary.json  # Latencies (mean/p50/p95/p99), QPS, and recall sweeps
+│       └── tradeoff_curve.png   # Generated Recall vs. Latency Pareto curve
 ├── tests/
-│   ├── test_api.py          # FastAPI REST endpoint integration tests
-│   ├── test_distance.py     # Math & distance primitive unit tests
-│   ├── test_kmeans.py       # Scratch K-Means convergence tests
-│   └── test_indices.py      # CRUD lifecycle tests for all indices
-├── docs/
-│   ├── architecture.md      # Detailed system architecture document
-│   └── benchmark_report.md  # Generated evaluation metrics report
-├── pytest.ini               # Pytest test discovery & PYTHONPATH configuration
-├── run_api.sh               # One-click FastAPI server launcher
-├── run_benchmark.sh         # One-click benchmark runner
-├── run_demo.sh              # One-click demo launcher
-├── requirements.txt         # Project dependencies
-└── README.md
+│   ├── test_api.py              # FastAPI REST endpoint integration tests
+│   ├── test_distance.py         # Math and distance primitive unit tests
+│   ├── test_indices.py          # CRUD lifecycle, compaction, and tombstoning tests
+│   └── test_kmeans.py           # Scratch K-Means convergence tests
+├── docs/                        # Comprehensive Architecture & Engineering Documentation
+│   ├── architecture.md          # Detailed system architecture blueprint & layer specs
+│   ├── benchmark_report.md      # Generated evaluation metrics report & crossover analysis
+│   ├── design.md                # Core algorithms & index technical design document
+│   ├── prd.md                   # Product Requirements Document (functional & non-functional)
+│   ├── requirements_checklist.md # Deliverables & assignment verification checklist
+│   ├── rules.md                 # Engineering invariants & pure-NumPy math constraints
+│   └── testing.md               # Quality assurance specification & test cases
+├── cache/                       # Precomputed binary caches (auto-generated)
+│   ├── vectors_50k.npy          # 50,000 dense vectors (dim=384)
+│   ├── queries_500.npy          # 500 evaluation query vectors
+│   ├── ground_truth_top10.npy   # Exact top-10 ground-truth neighbor IDs
+│   └── corpus_metadata.json     # Metadata and text sentences
+├── .streamlit/
+│   └── config.toml              # Streamlit server and theme configuration
+├── pytest.ini                   # Pytest test discovery & PYTHONPATH configuration
+├── run_api.sh                   # One-click FastAPI server launcher
+├── run_benchmark.sh             # One-click evaluation benchmark launcher
+├── run_demo.sh                  # One-click Streamlit Web UI / CLI launcher
+├── requirements.txt             # Python dependencies (NumPy, FastAPI, Streamlit, etc.)
+├── .gitignore                   # Git exclusion rules for caches and artifacts
+└── README.md                    # Project documentation and engineering guide
 ```
 
 ---
