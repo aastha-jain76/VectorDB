@@ -77,6 +77,9 @@ def generate_report():
     s_32 = next(s for s in ivf["sweeps"] if s["n_probe"] == 32)
     s_64 = next(s for s in ivf["sweeps"] if s["n_probe"] == 64)
 
+    slowdown_32 = 1.0 / s_32['speedup'] if s_32['speedup'] > 0 else 0
+    slowdown_64 = 1.0 / s_64['speedup'] if s_64['speedup'] > 0 else 0
+
     report += f"""
 ---
 
@@ -92,7 +95,7 @@ def generate_report():
 
 3. **High-Fidelity & The Algorithmic Crossover Point ($n_{{\\text{{probe}}}} \\ge 32$)**:
    - Probing 32 to 64 clusters yields near-perfect accuracy: **{s_32['recall_at_10']*100:.1f}%** at $n_{{\\text{{probe}}}}=32$ and **{s_64['recall_at_10']*100:.1f}%** at $n_{{\\text{{probe}}}}=64$.
-   - **Crucial Engineering Insight**: At $n_{{\\text{{probe}}}} \\ge 32$, query latency increases to **{s_32['mean_latency_ms']:.2f} ms** ({s_32['speedup']:.2f}x — approximately 1.7x slower than Brute Force) and **{s_64['mean_latency_ms']:.2f} ms** (3.7x slower).
+   - **Crucial Engineering Insight**: At $n_{{\\text{{probe}}}} \\ge 32$, query latency increases to **{s_32['mean_latency_ms']:.2f} ms** ({s_32['speedup']:.2f}x — approximately {slowdown_32:.1f}x slower than Brute Force) and **{s_64['mean_latency_ms']:.2f} ms** ({slowdown_64:.1f}x slower).
    - **Why this crossover happens**: In Python, iterating through and gathering candidate indices across 32+ distinct posting lists, allocating candidate arrays, and re-indexing introduces overhead that eventually exceeds a single contiguous, heavily vectorized NumPy BLAS matrix multiplication (`X @ q`) over all 50,000 vectors. This empirically proves the classic ANN boundary: inverted file indices are most advantageous at low-to-medium probe counts ($n_{{\\text{{probe}}}} \\le 16$), beyond which linear scanning in contiguous memory is faster.
 
 ---

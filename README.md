@@ -40,7 +40,7 @@ flowchart TD
     subgraph BF["Brute-Force Baseline (Exact Ground Truth)"]
         N --> BF_MATMUL["Exhaustive Dot Product: X · q_norm<br/>(Scans all N = 50,000 vectors)"]
         BF_MATMUL --> BF_SORT["Argpartition Top-k Sort"]
-        BF_SORT --> BF_RES["Exact Top-10 Results<br/>(100% Recall, ~2.95 ms)"]
+        BF_SORT --> BF_RES["Exact Top-10 Results<br/>(100% Recall, ~3.21 ms)"]
     end
     
     subgraph IVF["IVF-Flat Index (Approximate ANN Search)"]
@@ -49,7 +49,7 @@ flowchart TD
         IVF_PROBE --> IVF_POSTING["3. Posting List Traversal<br/>(Gather M << N candidate vectors)"]
         IVF_POSTING --> IVF_PRUNED["4. Pruned Dot Product: X_cand · q_norm<br/>(Evaluates only ~1,560 vectors at n_probe=8)"]
         IVF_PRUNED --> IVF_SORT["5. Candidate Top-k Ranking"]
-        IVF_SORT --> IVF_RES["Approx Top-10 Results<br/>(93.14% Recall, ~1.21 ms, 2.44x Speedup)"]
+        IVF_SORT --> IVF_RES["Approx Top-10 Results<br/>(93.14% Recall, ~1.23 ms, 2.61x Speedup)"]
     end
     
     BF_RES --> EVAL["Evaluation Engine & Benchmarking"]
@@ -159,17 +159,17 @@ Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$):
 
 | Index | Configuration | Recall@10 | Mean Latency | Speedup vs BF | QPS |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Brute-Force** | Ground Truth (BLAS Matmul) | **100.0%** | **2.95 ms** | 1.00x (Baseline) | **338.6** |
-| **IVF-Flat** | $n_{\text{probe}} = 1$ | 64.62% | **0.22 ms** | **13.39x Faster** | 4,533.3 |
-| **IVF-Flat** | $n_{\text{probe}} = 2$ | 76.20% | **0.27 ms** | **11.13x Faster** | 3,767.3 |
-| **IVF-Flat** | $n_{\text{probe}} = 4$ | 85.30% | **0.70 ms** | **4.21x Faster** | 1,424.1 |
-| **IVF-Flat** | $n_{\text{probe}} = 8$ *(Optimal on Test Hardware)* | **93.14%** | **1.21 ms** | **2.44x Faster** | 825.4 |
-| **IVF-Flat** | $n_{\text{probe}} = 16$ | **96.44%** | **2.08 ms** | **1.42x Faster** | 481.2 |
-| **IVF-Flat** | $n_{\text{probe}} = 32$ | **97.96%** | 5.06 ms | 0.58x *(1.7x slower)* | 197.6 |
-| **IVF-Flat** | $n_{\text{probe}} = 64$ | **99.40%** | 10.91 ms | 0.27x *(3.7x slower)* | 91.6 |
+| **Brute-Force** | Ground Truth (BLAS Matmul) | **100.0%** | **3.21 ms** | 1.00x (Baseline) | **311.4** |
+| **IVF-Flat** | $n_{\text{probe}} = 1$ | 64.62% | **0.20 ms** | **15.76x Faster** | 4,907.1 |
+| **IVF-Flat** | $n_{\text{probe}} = 2$ | 76.20% | **0.29 ms** | **11.23x Faster** | 3,495.9 |
+| **IVF-Flat** | $n_{\text{probe}} = 4$ | 85.30% | **0.65 ms** | **4.93x Faster** | 1,534.5 |
+| **IVF-Flat** | $n_{\text{probe}} = 8$ *(Optimal on Test Hardware)* | **93.14%** | **1.23 ms** | **2.61x Faster** | 813.7 |
+| **IVF-Flat** | $n_{\text{probe}} = 16$ | **96.44%** | **3.20 ms** | **1.00x (Parity)** | 312.9 |
+| **IVF-Flat** | $n_{\text{probe}} = 32$ | **97.96%** | 7.64 ms | 0.42x *(2.4x slower)* | 130.8 |
+| **IVF-Flat** | $n_{\text{probe}} = 64$ | **99.40%** | 10.27 ms | 0.31x *(3.2x slower)* | 97.3 |
 
 > **Key Finding (The Crossover Point)**:  
-> For our 50k-vector dataset on our test machine, IVF-Flat achieves **93.14% Recall@10** at **2.44x speedup** with $n_{\text{probe}}=8$, providing the best measured balance of recall and sub-linear latency. However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
+> For our 50k-vector dataset on our test machine, IVF-Flat achieves **93.14% Recall@10** at **2.61x speedup** with $n_{\text{probe}}=8$, providing the best measured balance of recall and sub-linear latency. However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
 
 ---
 
