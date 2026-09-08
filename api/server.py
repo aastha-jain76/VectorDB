@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="VectorDB From Scratch API",
-    description="Production-grade REST API over pure NumPy Brute-Force and IVF-Flat vector indices.",
+    description="Lightweight Educational REST API over pure NumPy Brute-Force and IVF-Flat vector indices.",
     version="1.0.0",
     lifespan=lifespan
 )

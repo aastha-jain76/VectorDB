@@ -175,7 +175,57 @@ def compute_ground_truth(corpus_vecs: np.ndarray, query_vecs: np.ndarray, top_k:
     return ground_truth_top10
 
 
-def main(force_recompute: bool = False):
+def generate_synthetic_dataset(
+    num_vectors: int = 50000, 
+    num_queries: int = 500, 
+    dimension: int = 384, 
+    num_clusters: int = 256, 
+    seed: int = 42
+):
+    """Generate 100% offline clustered synthetic vectors and queries from SEED=42.
+    
+    Creates anisotropic Gaussian mixture clusters on the unit sphere, simulating
+    real semantic embeddings without requiring internet or transformer models.
+    """
+    print(f"Generating 100% offline clustered synthetic vectors (SEED={seed})...")
+    rng = np.random.default_rng(seed)
+    
+    # 1. Generate cluster centroids
+    centroids = l2_normalize(rng.normal(size=(num_clusters, dimension)).astype(np.float32))
+    
+    # 2. Assign vectors to clusters with Dirichlet distribution
+    cluster_weights = rng.dirichlet(np.ones(num_clusters))
+    cluster_assignments = rng.choice(num_clusters, size=num_vectors, p=cluster_weights)
+    
+    # 3. Add Gaussian cluster variance (sigma=0.08) and L2 normalize
+    noise = rng.normal(loc=0.0, scale=0.08, size=(num_vectors, dimension)).astype(np.float32)
+    vectors = l2_normalize(centroids[cluster_assignments] + noise)
+    
+    # 4. Generate metadata
+    metadata = [
+        {
+            "id": i,
+            "title": f"Synthetic Document {i}",
+            "text": f"Synthetic article {i} generated from cluster centroid {cluster_assignments[i]}.",
+            "category": f"Cluster-{cluster_assignments[i]}"
+        }
+        for i in range(num_vectors)
+    ]
+    
+    # 5. Generate queries sampled near cluster centers
+    q_cluster_assignments = rng.choice(num_clusters, size=num_queries)
+    q_noise = rng.normal(loc=0.0, scale=0.10, size=(num_queries, dimension)).astype(np.float32)
+    queries = l2_normalize(centroids[q_cluster_assignments] + q_noise)
+    query_texts = [
+        f"Synthetic query {i} targeting cluster {q_cluster_assignments[i]}"
+        for i in range(num_queries)
+    ]
+    
+    print(f"Generated {num_vectors:,} synthetic vectors and {num_queries} queries (dim={dimension}).")
+    return vectors, metadata, queries, query_texts
+
+
+def main(force_recompute: bool = False, synthetic: bool = False):
     os.makedirs(CACHE_DIR, exist_ok=True)
 
     if (
@@ -189,13 +239,21 @@ def main(force_recompute: bool = False):
         print(f"Vectors: {VECTORS_PATH} ({os.path.getsize(VECTORS_PATH)/(1024*1024):.2f} MB)")
         return
 
-    corpus_texts, corpus_metadata, query_texts, query_metadata = load_raw_texts(
-        num_corpus=5000, 
-        num_queries=500
-    )
+    if synthetic:
+        final_vecs, final_metadata, query_vecs, query_texts = generate_synthetic_dataset(
+            num_vectors=50000, 
+            num_queries=500, 
+            dimension=384, 
+            seed=42
+        )
+    else:
+        corpus_texts, corpus_metadata, query_texts, query_metadata = load_raw_texts(
+            num_corpus=5000, 
+            num_queries=500
+        )
+        base_vecs, query_vecs = generate_embeddings(corpus_texts, query_texts)
+        final_vecs, final_metadata = expand_to_50k(base_vecs, corpus_metadata, target_size=50000, seed=42)
 
-    base_vecs, query_vecs = generate_embeddings(corpus_texts, query_texts)
-    final_vecs, final_metadata = expand_to_50k(base_vecs, corpus_metadata, target_size=50000, seed=42)
     gt_top10 = compute_ground_truth(final_vecs, query_vecs, top_k=10)
 
     print("Saving cache files to disk...")
@@ -215,5 +273,7 @@ def main(force_recompute: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="Force recompute embeddings")
+    parser.add_argument("--synthetic", action="store_true", help="Generate 100% offline clustered synthetic vectors (zero downloads)")
     args = parser.parse_args()
-    main(force_recompute=args.force)
+    main(force_recompute=args.force, synthetic=args.synthetic)
+

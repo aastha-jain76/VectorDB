@@ -107,9 +107,13 @@ pytest tests/ -v
 ```
 
 ### 2. Prepare Data & Vectors (Runs once)
-Generates the 50,000-vector dataset from real news sentences and computes ground truth for 500 queries:
+Generates the 50,000-vector dataset and computes ground truth for 500 queries:
 ```bash
+# Default: Real AG News Corpus (auto-downloads train.csv if not found locally)
 python3 data/prepare_data.py
+
+# Offline Mode: 100% pure synthetic clustered vectors from SEED=42 (zero network access)
+python3 data/prepare_data.py --synthetic
 ```
 
 ### 3. Run Benchmark Suite
@@ -119,7 +123,7 @@ Executes 500 queries against both Brute-Force and IVF-Flat across varying $n_{\t
 ```
 
 ### 4. Launch FastAPI REST Server
-Start the production-grade HTTP REST service with interactive Swagger UI:
+Start the lightweight educational HTTP REST service with interactive Swagger UI:
 ```bash
 ./run_api.sh
 ```
@@ -159,13 +163,13 @@ Across **500 evaluation queries** searching over **50,000 vectors** ($D=384$):
 | **IVF-Flat** | $n_{\text{probe}} = 1$ | 64.62% | **0.22 ms** | **13.39x Faster** | 4,533.3 |
 | **IVF-Flat** | $n_{\text{probe}} = 2$ | 76.20% | **0.27 ms** | **11.13x Faster** | 3,767.3 |
 | **IVF-Flat** | $n_{\text{probe}} = 4$ | 85.30% | **0.70 ms** | **4.21x Faster** | 1,424.1 |
-| **IVF-Flat** | $n_{\text{probe}} = 8$ *(Sweet Spot)* | **93.14%** | **1.21 ms** | **2.44x Faster** | 825.4 |
+| **IVF-Flat** | $n_{\text{probe}} = 8$ *(Optimal on Test Hardware)* | **93.14%** | **1.21 ms** | **2.44x Faster** | 825.4 |
 | **IVF-Flat** | $n_{\text{probe}} = 16$ | **96.44%** | **2.08 ms** | **1.42x Faster** | 481.2 |
 | **IVF-Flat** | $n_{\text{probe}} = 32$ | **97.96%** | 5.06 ms | 0.58x *(1.7x slower)* | 197.6 |
 | **IVF-Flat** | $n_{\text{probe}} = 64$ | **99.40%** | 10.91 ms | 0.27x *(3.7x slower)* | 91.6 |
 
 > **Key Finding (The Crossover Point)**:  
-> On our CPU, IVF-Flat achieves **93.14% Recall@10** at **2.44x speedup** ($n_{\text{probe}}=8$). However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
+> For our 50k-vector dataset on our test machine, IVF-Flat achieves **93.14% Recall@10** at **2.44x speedup** with $n_{\text{probe}}=8$, providing the best measured balance of recall and sub-linear latency. However, at $n_{\text{probe}} \ge 32$, the Python-level overhead of aggregating and slicing 32+ posting lists exceeds a single continuous NumPy BLAS matrix multiplication on 50k vectors, marking the exact boundary where linear scan becomes faster than inverted index lookups.
 
 ---
 
