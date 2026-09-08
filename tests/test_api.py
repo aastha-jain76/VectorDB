@@ -73,7 +73,8 @@ def test_search_and_crud(client):
     assert top_hit["id"] == "custom_doc_777"
 
     # 4. Search via direct dense vector using brute force
-    q_vec = np.random.randn(384).tolist()
+    rng = np.random.default_rng(42)
+    q_vec = rng.normal(size=384).tolist()
     bf_resp = client.post("/search", json={
         "vector": q_vec,
         "index": "brute_force",
@@ -96,11 +97,12 @@ def test_search_and_crud(client):
 
 def test_untrained_ivf_insert_error_api(client):
     orig_ivf = server.ivf_index
+    rng = np.random.default_rng(42)
     try:
         server.ivf_index = IVFFlatIndex(n_clusters=4, dimension=384)
         resp = client.post("/insert", json={
             "id": "bad_doc",
-            "vector": np.random.randn(384).tolist()
+            "vector": rng.normal(size=384).tolist()
         })
         assert resp.status_code == 400
         assert "must be trained" in resp.json()["detail"]
@@ -125,7 +127,8 @@ def test_effective_probe_reporting(client):
 def test_desynchronized_deletion_handling(client):
     # Artificially insert a vector only into BF to simulate orphaned state
     test_id = "orphan_doc_999"
-    q_vec = np.random.randn(server.dimension).astype(np.float32)
+    rng = np.random.default_rng(42)
+    q_vec = rng.normal(size=server.dimension).astype(np.float32)
     server.bf_index.insert(test_id, q_vec)
     assert test_id in server.bf_index.id_to_idx
     assert test_id not in server.ivf_index.id_to_idx

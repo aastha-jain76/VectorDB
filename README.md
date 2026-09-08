@@ -18,7 +18,7 @@
   - `delete(vector_id)` (with exact swap-and-pop list compaction for IVF-Flat and tombstoning for HNSW)
 - **50,000 Vector Scale with Real Semantics**:
   - Encoded 5,000 real sentences from the AG News corpus using `all-MiniLM-L6-v2` (`dim=384`).
-  - Expanded to 50,000 vectors via Gaussian manifold perturbations ($\sigma=0.03$) with `SEED=42` to benchmark 50k scale on CPU while maintaining realistic anisotropic semantic clusters.
+  - Expanded the 5,000 real-text embeddings to a 50,000-vector benchmark corpus using controlled Gaussian perturbations ($\sigma=0.03$, `SEED=42`).
 - **Rigorous Evaluation Suite**:
   - 500 test queries evaluated against exact ground truth.
   - Automated measurement of Recall@10, latency percentiles ($p50, p95, p99$), QPS, and speedup trade-off curves.
@@ -43,7 +43,7 @@ flowchart TD
         BF_SORT --> BF_RES["Exact Top-10 Results<br/>(100% Recall, ~2.95 ms)"]
     end
     
-    subgraph IVF["IVF-Flat Index (Sub-Linear Approximation)"]
+    subgraph IVF["IVF-Flat Index (Approximate ANN Search)"]
         N --> IVF_ROUTING["1. Centroid Routing: C · q_norm<br/>(Cosine sim against K=256 centroids)"]
         IVF_ROUTING --> IVF_PROBE["2. Multi-Probe Centroid Selection<br/>(Select top n_probe Voronoi cells)"]
         IVF_PROBE --> IVF_POSTING["3. Posting List Traversal<br/>(Gather M << N candidate vectors)"]
@@ -62,7 +62,7 @@ flowchart TD
 ## 📂 Project Structure
 
 ```
-IT_Geeks/
+VectorDB/
 ├── vectordb/                # Core Vector Database Engine (Pure NumPy)
 │   ├── __init__.py
 │   ├── base.py              # BaseVectorIndex abstract interface
